@@ -22,5 +22,4 @@ Execute the below terraform commands to deploy the resources.
     $ terraform apply -auto-approve -input=false
 
 
-## Metric Generator
-
+Follow the instructions in [Metrics Generator](metrics-generator/README.md) repository to generate mock data that is added to Kinesis Firehose.
