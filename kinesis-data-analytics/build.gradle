@@ -1,0 +1,135 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:6.0.0'
+    }
+}
+
+plugins {
+    id 'java'
+    id 'application'
+    id "com.github.johnrengelman.shadow" version "6.0.0"
+    id 'net.nemerosa.versioning' version '2.6.1'
+    id "com.diffplug.gradle.spotless" version '3.15.0'
+}
+
+apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: 'java'
+apply plugin: 'idea'
+
+group = 'com.emprovise.machine'
+//version = (findProperty('version') == 'unspecified') ? '0.0.1-SNAPSHOT' : version
+mainClassName = 'com.emprovise.machine.analytics.KinesisAnalyzer'
+description = """Flink Quickstart Job"""
+
+ext {
+    javaVersion = '11'
+    flinkVersion = '1.12.1'
+    kdaVersion = '1.2.0'
+    kafVersion = '2.0.0'
+    scalaBinaryVersion = '2.12'
+    slf4jVersion = '1.7.32'
+    log4jVersion = '2.17.1'
+    junitVersion = '4.12'
+    jacksonVersion = '2.9.8'
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url 'https://s3.sa-east-1.amazonaws.com/dynamodb-local-sao-paulo/release' }
+    maven { url 'https://repo.spring.io/milestone' }
+}
+
+sourceCompatibility = javaVersion
+targetCompatibility = javaVersion
+applicationDefaultJvmArgs = ["-Dlog4j.configurationFile=log4j2.properties"]
+
+println "Name: $project.name"
+println "Version: $project.version"
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+dependencies {
+    implementation "org.slf4j:slf4j-log4j12:${slf4jVersion}"
+
+    implementation "com.amazonaws:aws-kinesisanalytics-runtime:$kdaVersion"
+    implementation "com.amazonaws:aws-kinesisanalytics-flink:$kafVersion"
+    implementation "org.apache.flink:flink-connector-kinesis_$scalaBinaryVersion:$flinkVersion"
+
+    //Apache Flink dependencies
+    implementation "org.apache.flink:flink-java:$flinkVersion"
+    implementation "org.apache.flink:flink-clients_$scalaBinaryVersion:$flinkVersion"
+    implementation "org.apache.flink:flink-streaming-java_$scalaBinaryVersion:$flinkVersion"
+    implementation "org.apache.flink:flink-json:$flinkVersion"
+
+    implementation 'jakarta.validation:jakarta.validation-api:2.0.2'
+    implementation 'commons-beanutils:commons-beanutils:1.9.4'
+
+    // compileOnly, testCompile
+    testImplementation "junit:junit:$junitVersion"
+
+    testImplementation "org.apache.flink:flink-test-utils_$scalaBinaryVersion:$flinkVersion"
+    testImplementation "org.apache.flink:flink-runtime_$scalaBinaryVersion:$flinkVersion:tests"
+    testImplementation "org.apache.flink:flink-streaming-java_$scalaBinaryVersion:$flinkVersion:tests"
+    testImplementation 'org.mockito:mockito-all:1.10.19'
+    testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.6.2'
+}
+
+jar {
+    manifest {
+        attributes 'Built-By': System.getProperty('user.name'),
+                   'Build-Jdk': System.getProperty('java.version')
+    }
+}
+
+// assemble.dependsOn(shadowJar)
+
+application {
+    mainClassName = 'com.emprovise.machine.analytics.KinesisAnalyzer'
+}
+
+shadowJar {
+    mainClassName = 'com.emprovise.machine.analytics.KinesisAnalyzer'
+    mergeServiceFiles()
+    manifest {
+        attributes 'Main-Class': mainClassName
+    }
+    zip64 true
+}
+
+static void setModuleVersions(DependencyResolveDetails details) {
+
+    final List<List<String>> setModuleVersions = [
+        ['org.apache.logging.log4j', 'log4j-api', '2.17.1', 'CVE-2021-44832'],
+        ['org.apache.logging.log4j', 'log4j-to-slf4j', '2.17.1', 'CVE-2021-44832'],
+        ['net.minidev', 'json-smart', '2.4.7', 'because of CVE-2021-27568'],
+        ['org.yaml',    'snakeyaml', '1.26', 'because of CVE-2017-18640']
+    ]
+    setModuleVersions.each { eachModule ->
+        if (((eachModule[0] as String).equalsIgnoreCase(details.requested.group)) &&
+                ((eachModule[1] as String).equalsIgnoreCase(details.requested.name))) {
+            details.useTarget group: details.requested.group, name: details.requested.name, version: eachModule[2] as String
+            details.because eachModule[3] as String
+        }
+    }
+}
+
+configurations {
+    extraLibs
+    all {
+        resolutionStrategy.eachDependency({ DependencyResolveDetails details ->
+            setModuleVersions(details)
+        })
+    }
+}
+
+test {
+    useJUnitPlatform {}
+    testLogging.showStandardStreams = true
+    testLogging.exceptionFormat = 'full'
+}

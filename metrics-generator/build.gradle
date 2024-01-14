@@ -1,0 +1,66 @@
+plugins {
+    id 'java-library'
+    id 'com.github.ben-manes.versions' version '0.38.0'
+}
+
+apply plugin: 'java'
+apply plugin: 'idea'
+
+//group = 'com.emprovise.network.metrics'
+
+println "Name: $project.name"
+println "Version: $project.version"
+
+ext {
+    javaVersion = '11'
+    slf4jVersion = '1.7.32'
+    log4jVersion = '2.17.1'
+    jacksonVersion = '2.9.8'
+}
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+test {
+    // enable junits for gradle 4.6+
+    useJUnitPlatform ()
+
+    // Show test results
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
+
+dependencies {
+    api (
+        'com.amazonaws:aws-java-sdk-kinesis:1.11.312',
+        'com.amazonaws:aws-lambda-java-core:1.2.1',
+        'com.amazonaws:aws-lambda-java-events:3.11.0',
+        'com.google.code.gson:gson:2.8.9',
+        'jakarta.validation:jakarta.validation-api:2.0.2',
+        'org.jeasy:easy-random-core:5.0.0',
+        'org.jeasy:easy-random-randomizers:5.0.0'
+    )
+    testImplementation (
+        'com.amazonaws:aws-lambda-java-tests:1.1.1',
+        'org.junit.jupiter:junit-jupiter:5.8.1',
+    )
+}
+
+task buildZip(type: Zip) {
+    // set the base name of the zip file
+    archiveBaseName = "functions"
+    from compileJava
+    from processResources
+    into('lib') {
+        from configurations.runtimeClasspath
+    }
+}
+
+build.dependsOn buildZip

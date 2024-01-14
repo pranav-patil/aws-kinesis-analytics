@@ -1,0 +1,78 @@
+openapi: 3.0.3
+
+info:
+  title: Analytics Metric API
+  description: Integrate Analytics Metric APIs with your virtual environment and check various metrics for your computers/machines.
+  contact:
+    name: Emprovise Inc
+    url: https://emprovise.com
+  license:
+    name: Copyright (c) Emprovise Inc. - All Rights Reserved
+  version: ''
+servers:
+  - url: https://emprovise.com/api
+tags:
+  - name: Greetings
+    description: Greetings from around the world!
+
+paths:
+  /greetings/hello:
+    get:
+      tags:
+        - Greetings
+      summary: A greeting in English
+      description: Returns a English greeting.
+      operationId: getHello
+      responses:
+        '200':
+          description: Greeting made
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Greeting'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorModel'
+  /greetings/hola:
+    get:
+      tags:
+        - Greetings
+      summary: A greeting in Spanish
+      description: Returns a Spanish greeting.
+      operationId: getHola
+      responses:
+        '200':
+          description: Greeting made
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Greeting'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorModel'
+
+components:
+  schemas:
+    Greeting:
+      type: object
+      properties:
+        message:
+          type: string
+    ErrorModel:
+      type: object
+      required:
+        - message
+        - code
+      properties:
+        message:
+          type: string
+        code:
+          type: integer
+          minimum: 100
+          maximum: 600

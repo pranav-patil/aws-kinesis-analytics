@@ -1,0 +1,88 @@
+# Random Metrics Generator
+
+service: metrics-generator
+
+frameworkVersion: '>=2.9.0'
+variablesResolutionMode: 20210326
+useDotenv: true
+configValidationMode: error
+
+provider:
+  name: aws
+  runtime: java11
+  lambdaHashingVersion: 20201221
+
+  stage: ${opt:stage}
+  region: ${opt:region, env:AWS_DEFAULT_REGION}
+  stackTags:
+    Type: App
+    Ticket: ${env:TICKET, 'NA'}
+    GitRepo: aws-kinesis-analytics
+  versionFunctions: false
+  timeout: ${opt:function-timeout-seconds, '30'}
+  memorySize: 512
+
+  deploymentBucket:
+    name: ${ssm:slsDeploymentBucket, null}
+    blockPublicAccess: true
+    serverSideEncryption: aws:kms
+    sseKMSKeyId: ${ssm:serverless_kms_key, null}
+  vpc:
+    securityGroupIds: ${ssm:/application/vpc_security_groups, null}
+    subnetIds: ${ssm:/application/vpc_subnets, null}
+  iam:
+    role: !Sub arn:aws:iam::${AWS::AccountId}:role/MetricsGenLambdaRole
+    deploymentRole: ${self:custom.deploymentRole.${aws:accountId}, null}
+  tracing:
+    apiGateway: true
+    lambda: true
+  kmsKeyArn: ${ssm:lambda_kms_key, null}
+  logRetentionInDays: 7
+
+  environment:
+    REGION: ${self:provider.region}
+    KINESIS_STREAM: ${sls:stage}-kinesis-metrics-stream
+
+package:
+  artifact: ${env:ARTIFACT_LOC, 'build/distributions'}/functions.zip
+
+functions:
+  app:
+    handler: com.emprovise.network.metrics.functions.Handler
+    events:
+      - schedule: rate(1 minute)
+    timeout: 29
+
+custom:
+
+#  customDomain:
+#    enabled: ${strToBool(${env:enableCustomDomain, true})}
+#    domainName: ${ssm:${sls:stage}ApiDomainName, ssm:EmproviseApiDomainName, null}
+#    stage: ${sls:stage}
+#    basePath: api/greetings
+#    endpointType: regional
+#
+
+  prune:
+    automatic: true
+    number: 10
+
+  alerts:
+    stages: # select which stages to deploy alarms to
+      - develop
+      - staging
+      - production
+    dashboards: true
+    topics:
+      alarm:
+        topic: !Sub arn:aws:sns:${AWS::Region}:${AWS::AccountId}:monitoring-alarms-${AWS::Region}
+    alarms:
+      - functionErrors
+
+
+plugins:
+  - '@serverless/safeguards-plugin'
+  - serverless-cloud-conformity
+  - serverless-plugin-aws-alerts
+  - serverless-plugin-ifelse
+  - serverless-prune-plugin
